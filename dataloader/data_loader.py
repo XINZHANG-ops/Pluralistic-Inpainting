@@ -9,17 +9,23 @@ import random
 class CreateDataset(data.Dataset):
     def __init__(self, opt):
         self.opt = opt
-        self.img_paths, self.img_size = make_dataset(opt.img_file)
+        self.img_paths, self.img_size = make_dataset(opt.img_file) # img_size is how many images we have, not shape
+        self.img_paths = [i for i in self.img_paths if 'checkpoint' not in i]
+        self.img_size = len(self.img_paths)
+        self.img_paths = sorted(self.img_paths)
         # provides random file for training and testing
         if opt.mask_file != 'none':
             self.mask_paths, self.mask_size = make_dataset(opt.mask_file)
+            self.mask_paths = [i for i in self.mask_paths if 'checkpoint' not in i]
+            self.mask_size = len(self.mask_paths)
+            self.mask_paths = sorted(self.mask_paths)
         self.transform = get_transform(opt)
 
     def __getitem__(self, index):
         # load image
         img, img_path = self.load_img(index)
         # load mask
-        mask = self.load_mask(img, index)
+        mask, mask_path = self.load_mask(img, index)
         return {'img': img, 'img_path': img_path, 'mask': mask}
 
     def __len__(self):
@@ -38,40 +44,59 @@ class CreateDataset(data.Dataset):
 
     def load_mask(self, img, index):
         """Load different mask types for training and testing"""
-        mask_type_index = random.randint(0, len(self.opt.mask_type) - 1)
-        mask_type = self.opt.mask_type[mask_type_index]
+        mask_type = int(self.opt.mask_type)
+       # mask_type_index = random.randint(0, len(self.opt.mask_type) - 1)
+       # mask_type = self.opt.mask_type[mask_type_index]
 
         # center mask
         if mask_type == 0:
-            return task.center_mask(img)
+            return task.center_mask(img), None
 
         # random regular mask
         if mask_type == 1:
-            return task.random_regular_mask(img)
+            return task.random_regular_mask(img), None
 
         # random irregular mask
         if mask_type == 2:
-            return task.random_irregular_mask(img)
+            return task.random_irregular_mask(img), None
 
         # external mask from "Image Inpainting for Irregular Holes Using Partial Convolutions (ECCV18)"
+#         if mask_type == 3:
+#             if self.opt.isTrain:
+#                 mask_index = random.randint(0, self.mask_size-1)
+#             else:
+#                 mask_index = index
+#             mask_pil = Image.open(self.mask_paths[mask_index]).convert('RGB')
+#             size = mask_pil.size[0]
+#             if size > mask_pil.size[1]:
+#                 size = mask_pil.size[1]
+#             mask_transform = transforms.Compose([transforms.RandomHorizontalFlip(),
+#                                                  transforms.RandomRotation(10),
+#                                                  transforms.CenterCrop([size, size]),
+#                                                  transforms.Resize(self.opt.fineSize),
+#                                                  transforms.ToTensor()
+#                                                  ])
+#             mask = (mask_transform(mask_pil) == 0).float()
+#             mask_pil.close()
+#             return mask
+        
         if mask_type == 3:
             if self.opt.isTrain:
-                mask_index = random.randint(0, self.mask_size-1)
+                mask_index = index
             else:
                 mask_index = index
-            mask_pil = Image.open(self.mask_paths[mask_index]).convert('RGB')
+            mask_path = self.mask_paths[mask_index]
+            mask_pil = Image.open(mask_path).convert('RGB')
             size = mask_pil.size[0]
             if size > mask_pil.size[1]:
                 size = mask_pil.size[1]
-            mask_transform = transforms.Compose([transforms.RandomHorizontalFlip(),
-                                                 transforms.RandomRotation(10),
-                                                 transforms.CenterCrop([size, size]),
+            mask_transform = transforms.Compose([transforms.CenterCrop([size, size]),
                                                  transforms.Resize(self.opt.fineSize),
                                                  transforms.ToTensor()
                                                  ])
             mask = (mask_transform(mask_pil) == 0).float()
             mask_pil.close()
-            return mask
+            return mask, mask_path
 
 
 def dataloader(opt):
