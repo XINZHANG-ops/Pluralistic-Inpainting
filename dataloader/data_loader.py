@@ -26,6 +26,19 @@ class CreateDataset(data.Dataset):
         img, img_path = self.load_img(index)
         # load mask
         mask, mask_path = self.load_mask(img, index)
+#         print(img.shape, mask.shape)
+#         print(img_path, mask_path)
+#         import os
+#         file_n = os.path.splitext(img_path.split(os.sep)[-1])[0]
+#         img = img.numpy()
+#         mask = mask.numpy()
+#         img = img.T #reshape(img.shape[2], img.shape[1], img.shape[0])
+#         mask = mask.T #reshape(mask.shape[2], mask.shape[1], mask.shape[0])
+#         from matplotlib import pyplot as plt
+#         plt.imshow(img, interpolation='nearest')
+#         plt.savefig(f'{file_n}_image.png')
+#         plt.imshow(mask, interpolation='nearest')
+#         plt.savefig(f'{file_n}_mask.png')
         return {'img': img, 'img_path': img_path, 'mask': mask}
 
     def __len__(self):
@@ -81,20 +94,23 @@ class CreateDataset(data.Dataset):
 #             return mask
         
         if mask_type == 3:
+            
+            
+            
             if self.opt.isTrain:
                 mask_index = index
             else:
                 mask_index = index
             mask_path = self.mask_paths[mask_index]
             mask_pil = Image.open(mask_path).convert('RGB')
-            size = mask_pil.size[0]
-            if size > mask_pil.size[1]:
-                size = mask_pil.size[1]
-            mask_transform = transforms.Compose([transforms.CenterCrop([size, size]),
-                                                 transforms.Resize(self.opt.fineSize),
-                                                 transforms.ToTensor()
-                                                 ])
-            mask = (mask_transform(mask_pil) == 0).float()
+#             size = mask_pil.size[0]
+#             if size > mask_pil.size[1]:
+#                 size = mask_pil.size[1]
+#             mask_transform = transforms.Compose([transforms.CenterCrop([size, size]),
+#                                                  transforms.Resize(self.opt.fineSize),
+#                                                  transforms.ToTensor()
+#                                                  ])
+            mask = (self.transform(mask_pil) == 0).float()
             mask_pil.close()
             return mask, mask_path
 
@@ -112,17 +128,18 @@ def get_transform(opt):
     osize = [opt.loadSize[0], opt.loadSize[1]]
     fsize = [opt.fineSize[0], opt.fineSize[1]]
     if opt.isTrain:
-        if opt.resize_or_crop == 'resize_and_crop':
-            transform_list.append(transforms.Resize(osize))
-            transform_list.append(transforms.RandomCrop(fsize))
-        elif opt.resize_or_crop == 'crop':
-            transform_list.append(transforms.RandomCrop(fsize))
-        if not opt.no_augment:
-            transform_list.append(transforms.ColorJitter(0.0, 0.0, 0.0, 0.0))
-        if not opt.no_flip:
-            transform_list.append(transforms.RandomHorizontalFlip())
-        if not opt.no_rotation:
-            transform_list.append(transforms.RandomRotation(3))
+        transform_list.append(transforms.Resize(fsize))
+#         if opt.resize_or_crop == 'resize_and_crop':
+#             transform_list.append(transforms.Resize(osize))
+#             transform_list.append(transforms.RandomCrop(fsize))
+#         elif opt.resize_or_crop == 'crop':
+#             transform_list.append(transforms.RandomCrop(fsize))
+#         if not opt.no_augment:
+#             transform_list.append(transforms.ColorJitter(0.0, 0.0, 0.0, 0.0))
+#         if not opt.no_flip:
+#             transform_list.append(transforms.RandomHorizontalFlip())
+#         if not opt.no_rotation:
+#             transform_list.append(transforms.RandomRotation(3))
     else:
         transform_list.append(transforms.Resize(fsize))
 
